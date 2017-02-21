@@ -1,0 +1,36 @@
+# Architecture:
+## Sub-applications:
+- Renderer
+- Zones
+ - ZoneRegistry
+  - use GenServer
+  - Can map from any Zone to all connected Zones
+  - Zones arranged in arbitrary graph
+ - Zone
+  - macro-module
+  - use Agent
+  - Knows what Objects are in it
+   - (pid and tags)
+  - call it for contained Objects (of specific kind)
+  - Has a list of atoms as tags
+- Objects
+ - ObjectRegistry
+  - use GenServer
+ - Object
+  - macro-module
+  - use Agent
+  - Created in/by a Zone, store pid of that Zone
+  - State is a map, which can include tags (atom mapping to true)
+  - Has a list of functions following Rule API
+  - Has an automatic update function
+  - Responds to messages passed from UI forwarder
+- Rule system
+ - Rule API
+  - foo({:tag, pid}, {:tag, pid}, :samezone) # (or :connzone)
+  - Given two objects with specific tags, call some specified functions
+  - Very open-ended
+  - Each update, all Zones try to call rules for all object pairs
+  - Game should have a single Rules module to leverage pattern-matching
+- UI Forwarder
+ - Send messages to object manager containing keyboard input
+  - Not bothering with other input devices for the first version
