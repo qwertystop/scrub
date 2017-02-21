@@ -1,10 +1,16 @@
 # Architecture:
 ## Sub-applications:
 - Renderer
+ - Stores non-changing information (like sprites) for each object
+ - Gets changing information (any transforms) each frame
+ - Each Zone has a place on-screen to be rendered in, and a background to put there
+ - Zone areas cannot overlap
+  - Removes some graphical options, but graphics are not the point of this project
 - Zones
  - ZoneRegistry
   - use GenServer
   - Can map from any Zone to all connected Zones
+   - Connection sets are tagged, allowing e.g. directions to matter
   - Zones arranged in arbitrary graph
  - Zone
   - macro-module
@@ -13,6 +19,8 @@
    - (pid and tags)
   - call it for contained Objects (of specific kind)
   - Has a list of atoms as tags
+  - Has a function: Given an Object's in-zone position, produce a transform for the renderer
+   - Literal position isn't as much of a thing
 - Objects
  - ObjectRegistry
   - use GenServer
@@ -24,11 +32,12 @@
   - Has a list of functions following Rule API
   - Has an automatic update function
   - Responds to messages passed from UI forwarder
+  - Has a location, but relative to the Zone
 - Rule system
  - Rule API
   - foo({:tag, pid}, {:tag, pid}, :samezone) # (or :connzone)
-  - Given two objects with specific tags, call some specified functions
-  - Very open-ended
+  - Given two objects with specific tags, send messages to those objects
+  - Objects should handle those messages appropriately
   - Each update, all Zones try to call rules for all object pairs
   - Game should have a single Rules module to leverage pattern-matching
 - UI Forwarder
