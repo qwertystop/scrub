@@ -43,3 +43,34 @@
 - UI Forwarder
  - Send messages to object manager containing keyboard input
   - Not bothering with other input devices for the first version
+
+# Basic game loop:
+1. Concurrently:
+ - Each zone runs all applicable rules
+  - Concurrency means any given interaction could happen in a two-frame window
+ - UI forwarder collects and sends along messages from user input
+ - Each object does its per-frame update
+  1. Handles any messages (from Zones/Rules, from user input, etc)
+  2. Does the standard self-only state update
+   - Make sure that message handling and standard update don't overlap.
+    - That might be automatic?
+   - All creation and destruction of Objects must be told to Zone
+    - All modification of game state is inside an Object
+  3. Each object sends the renderer its new position and Zone
+  4. Each object tells its Zone it's done
+   - Zone keeps count, tells Renderer when it's ready to render
+2. Rendering happens (for each Zone separately, in parallel)
+ - Objects send the Renderer their current position and what Zone they're in
+  - Position is in-zone
+  - Renderer asks Zone to turn position into a transform to render within that Zone
+ - Renderer renders Zone
+ - When all Zones are rendered, draw to screen
+ 
+## Game loop reduced to pipeline
+**1-3 all happen concurrently.**
+1. Zones check rules
+2. Input is forwarded
+3. Objects self-update accordingly
+4. Renderer renders all zones in parallel
+5. Draw to screen
+
