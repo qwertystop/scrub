@@ -9,13 +9,9 @@ defmodule APS.Application do
     import Supervisor.Spec, warn: false
 
     # Define workers and child supervisors to be supervised
-    children = [
-      # Starts a worker by calling: APS.Worker.start_link(arg1, arg2, arg3)
-      # worker(APS.Worker, [arg1, arg2, arg3]),
-    ]
-
-    # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
-    # for other strategies and supported options
+    # Workers are pulled from application configuration
+    children = for {module, args, opts} <- Application.get_env(:aps, :zones),
+                  do: worker(module, args, opts)
     opts = [strategy: :one_for_one, name: APS.Supervisor]
     Supervisor.start_link(children, opts)
   end

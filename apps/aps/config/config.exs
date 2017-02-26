@@ -28,3 +28,15 @@ use Mix.Config
 # here (which is why it is important to import them last).
 #
 #     import_config "#{Mix.env}.exs"
+
+config :aps, :zones,
+       [
+         # USERCODE:
+         # Configure all instances of APS to be created on game start here.
+         # Each tuple will be used as arguments to Supervisor.Spec.worker/3
+         #  (options are not optional, use [] if all are default)
+         #  as follows:
+         # {Module, args, options},
+         # {Module2, args2, options2}
+         # et cetera
+       ]
