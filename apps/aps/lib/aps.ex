@@ -28,8 +28,10 @@ defmodule APS do
   function.
   """
 
+# TODO: Done things are:
+# Initialization of objects, adding more objects.
+
   @doc """
-  TODO Documentation
   A Zone is set up by `use APS, opts`,
   where `opts` is the tuple used by default for initialization
   arguments, when calling Zone.start_link/0
@@ -58,6 +60,14 @@ defmodule APS do
         GenServer.start_link(__MODULE__, unquote(opts))
       end
 
+      @doc """
+      Add a new object to the specified Zone.
+      (specify a Zone by pid or by name)
+      """
+      def add_object(zone, tags, module, args, options \\ []) do
+        GenServer.cast(zone, {:addobj, {tags, module, args, options}})
+      end
+
 
       ## GenServer callbacks
       def init({object_setup}) do
@@ -68,7 +78,6 @@ defmodule APS do
       @doc """
       Add an object to this.
       """
-      # TODO make sure the public API has a default for opts
       def handle_cast({:addobj, {tags, module, args, opts}=params}, state) do
         {objlist, taglist} = add_obj(state.objects, state.tags, params)
         {:noreply, %{state |
