@@ -70,34 +70,48 @@ defmodule APS do
                 {module, args} ->
                   {:ok, pid} = Agent.start_link(module, :init, args)
               end
-              # Add new tags, and register new object with them
-              for tag <- tags do
-                case tagmap do
-                  # If tag is registered, add new object
-                  %{^tag => vals} ->
-                    tagmap = %{tagmap | tag => [pid | tagmap[tag]]}
-                  # If tag is not registered, register it
-                  _ -> tagmap = %{tagmap | tag => [pid]}
-                end
-              end
-            end
+          # Add new tags, and register new object with them
+          # TODO this falls out of scope, is ineffective
+	        tagmap = update_tags(tagmap, tags, pid)
+	        pid
+        end
         # Done. Take the opportunity to clean up the stack,
         # as it's unlikely anything else will call this immediately,
         # since the rest of the game still needs to initialize.
         # Also it's more acceptable to be a little slower at startup.
-        {ok, %{objects: object_setup, tags: tagmap}, :hibernate}
+        {ok, %{objects: objects, tags: tagmap}, :hibernate}
       end
 
       @doc """
       Add an object to this.
       """
-      # TODO add tags
       def handle_cast({:addobj, tags, module, args, opts}, state) do
-        {:noreply, %{state |
-            :objects => %{state.objects |
-                Agent.start_link(module, :init, args, opts)}}}
+      {:ok, pid} = Agent.start_link(module, :init, args, opts)
+      {:noreply, %{%{state |
+        :objects => [pid | state.objects]} |
+        :tags => update_tags(state.tags, tags, pid)}}
       end
 
+      # Private functions
+
+
+      # Add item to all new tags, add them to existing
+      defp update_tags(existing, new, item) do
+        [first | rest] = new
+        case existing do
+          # If first is there, prepend new item
+          %{^first => vals} ->
+            result = %{existing | first => [item | existing[first]]}
+            # else make a new list
+            _ -> result = %{existing | first => [item]}
+          end
+          update_tags(result, rest, item)
+        end
+
+      # base case
+      defp update_tags(existing, [], _item) do
+        existing
+      end
     end
   end
 end
