@@ -50,7 +50,7 @@ defmodule APS do
   defmacro __using__(opts) do
     quote do
       use GenServer
-      # TODO define public API of a Zone here
+      # Public API of Zones
       @doc """
       Starts up the Zone with default arguments
       """
@@ -58,42 +58,44 @@ defmodule APS do
         GenServer.start_link(__MODULE__, unquote(opts))
       end
 
-      # Define GenServer callbacks here
-      def init({object_setup}) do
-        tagmap = %{}
-        objects = for block <- object_setup do
-              [tags | params] = block
 
-              case params do
-                {module, args, opts} ->
-                  {:ok, pid} = Agent.start_link(module, :init, args, opts)
-                {module, args} ->
-                  {:ok, pid} = Agent.start_link(module, :init, args)
-              end
-          # Add new tags, and register new object with them
-          # TODO this falls out of scope, is ineffective
-	        tagmap = update_tags(tagmap, tags, pid)
-	        pid
-        end
-        # Done. Take the opportunity to clean up the stack,
-        # as it's unlikely anything else will call this immediately,
-        # since the rest of the game still needs to initialize.
-        # Also it's more acceptable to be a little slower at startup.
+      ## GenServer callbacks
+      def init({object_setup}) do
+        {objects, tagmap} = start_objects(object_setup)
         {ok, %{objects: objects, tags: tagmap}, :hibernate}
       end
 
       @doc """
       Add an object to this.
       """
-      def handle_cast({:addobj, tags, module, args, opts}, state) do
-      {:ok, pid} = Agent.start_link(module, :init, args, opts)
-      {:noreply, %{%{state |
-        :objects => [pid | state.objects]} |
-        :tags => update_tags(state.tags, tags, pid)}}
+      # TODO make sure the public API has a default for opts
+      def handle_cast({:addobj, {tags, module, args, opts}=params}, state) do
+        {objlist, taglist} = add_obj(state.objects, state.tags, params)
+        {:noreply, %{state |
+            :objects => objlist,
+            :tags => taglist}}
       end
 
-      # Private functions
+      ## Private functions
 
+      # Starts a new object,
+      # returns updated taglist and objlist
+      defp add_obj(objlist, tagmap, {tags, module, args, opts}) do
+        {:ok, pid} = Agent.start_link(module, :init, args, opts)
+        {[pid | objlist], update_tags(tagmap, tags, pid)}
+      end
+
+      # Start all the objects and collect their tags
+      defp start_objects([params | rest]=obj_setup_list,
+          pids \\ [], tagmap \\ %{}) do
+        {objlist, tagmap} = add_obj(pids, tagmap, params)
+        start_objects(rest, objlist, tagmap)
+      end
+
+      # base case
+      defp start_objects([], pids \\ [], tagmap \\ %{}) do
+        {pids, tagmap}
+      end
 
       # Add item to all new tags, add them to existing
       defp update_tags(existing, new, item) do
