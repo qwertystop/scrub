@@ -149,12 +149,11 @@ defmodule APS do
 
   # Add item to all new tags, add them to existing
   defp update_tags(existing, [tag | rest], item) do
-    case existing do
+    result = case existing do
       # If first is there, prepend new item
-      %{^tag => vals} ->
-        result = %{existing | tag => [item | vals]}
+      %{^tag => vals} -> %{existing | tag => [item | vals]}
         # else make a new list
-        _ -> result = %{existing | tag => [item]}
+        _ -> %{existing | tag => [item]}
       end
       update_tags(result, rest, item)
     end
