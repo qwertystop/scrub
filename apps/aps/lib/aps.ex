@@ -36,14 +36,7 @@ defmodule APS do
   where `opts` is the tuple used by default for initialization
   arguments, when calling Zone.start_link/0
 
-  `opts` is as follows:
-  {object_setup}
-
-  object_setup is as follows:
-  A list of parameters to use for initializing all Objects in the Zone,
-    organized as for start_link with the addition
-    of a keyword list [tag: value, tag2: value2]:
-  [{tags, module, args, options}, {tags, module, args, options}, ...]
+  See the init/1 function for details.
 
   (Zones can be started with arguments other than the default
   by instead starting them with with
@@ -70,6 +63,17 @@ defmodule APS do
 
 
       ## GenServer callbacks
+      @doc """
+      Initialize the Zone.
+      Argument must be a tuple containing:
+      - object_setup
+
+      object_setup is a list of object parameter tuples.
+      An object parameter tuple is {tag_list, module, args, opts}
+      tag_list is a list of symbols used to tag the specific object.
+      The others are the arguments to Agent.start_link/4 to create the object,
+      where the function called is :init
+      """
       def init({object_setup}) do
         {objects, tagmap} = start_objects(object_setup)
         {ok, %{objects: objects, tags: tagmap}, :hibernate}
