@@ -47,8 +47,7 @@ defmodule APS do
   defmacro __using__(opts) do
     quote do
       use GenServer
-      require APS
-      # Public API of Zones
+      ## Public API of Zones
       @doc """
       Starts up the Zone with default arguments
       """
@@ -56,24 +55,28 @@ defmodule APS do
         GenServer.start_link(__MODULE__, unquote(opts))
       end
 
-      # Delegates to APS for GenServer callbacks
-      def init(arg) do
-        APS.init(arg)
-      end
+      # This part of the public API is the same regardless of configuration
+      defdelegate add_object(zone, tags, module, args, options \\ []), to: APS
+      defdelegate show_tags(zone), to: APS
+      defdelegate find_tagged(zone, tag), to: APS
 
-      def handle_call(request, from, state) do
-        APS.handle_call(request, from, state)
-      end
+      ## GenServer callbacks
+      defdelegate init(args), to: APS
 
-      def handle_cast(request, state) do
-        APS.handle_cast(request, state)
-      end
+      # Specific-pattern heads don't work with defdelegate
+      def handle_call(:showtags, from, state),
+        do: APS.handle_call(:showtags, from, state)
 
-      defoverridable [start_link: 0, handle_call: 3, handle_cast: 2]
+      def handle_call({:findtagged, tag}, from, state),
+        do: APS.handle_call({:findtagged, tag}, from, state)
+
+      def handle_cast({:addobj, params}, state),
+        do: APS.handle_cast({:addobj, params}, state)
     end
   end
 
-  # Public API of Zones
+  # Public API for basic manipulation common to all Zones
+
   @doc """
   Add a new object to the specified Zone.
   (specify a Zone by pid or by name)
@@ -97,8 +100,6 @@ defmodule APS do
     GenServer.call(zone, {:findtagged, tag})
   end
 
-  ## GenServer callbacks
-
   @doc """
   Initialize the Zone.
   Argument must be a tuple containing:
@@ -117,10 +118,17 @@ defmodule APS do
 
   # Calls
 
+  @doc """
+  Return the list of tags in the given zone
+  """
   def handle_call(:showtags, _from, %{:tags => tags}=state) do
     {:reply, Map.keys(tags), state}
   end
 
+  @doc """
+  Returns the  list of objects with the given tag in the zone.
+  Returns an empty list if there are no such objects.
+  """
   def handle_call({:findtagged, tag}, _from, %{:tags => tags}=state) do
     reply = case tags do
       %{^tag => val} -> val
@@ -142,7 +150,7 @@ defmodule APS do
         :tags => tagmap}}
   end
 
-  ## Private functions
+  ## Utilities
 
   # Starts a new object,
   # returns updated taglist and objlist
