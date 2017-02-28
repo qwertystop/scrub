@@ -66,10 +66,8 @@ defmodule APS do
       # Specific-pattern heads don't work with defdelegate
       def handle_call(:showtags, from, state),
         do: APS.handle_call(:showtags, from, state)
-
       def handle_call({:findtagged, tag}, from, state),
         do: APS.handle_call({:findtagged, tag}, from, state)
-
       def handle_cast({:addobj, params}, state),
         do: APS.handle_cast({:addobj, params}, state)
     end
@@ -99,6 +97,8 @@ defmodule APS do
   def find_tagged(zone, tag) do
     GenServer.call(zone, {:findtagged, tag})
   end
+
+  ## GenServer callbacks
 
   @doc """
   Initialize the Zone.
@@ -138,7 +138,6 @@ defmodule APS do
   end
 
   # Casts
-
   @doc """
   Add an object to this.
   """
@@ -150,8 +149,7 @@ defmodule APS do
         :tags => tagmap}}
   end
 
-  ## Utilities
-
+  ## Private
   # Starts a new object,
   # returns updated taglist and objlist
   defp add_obj(objlist, tagmap, {tags, module, args, opts}) do
@@ -165,7 +163,6 @@ defmodule APS do
     {objlist, tagmap} = add_obj(pids, tagmap, params)
     start_objects(rest, objlist, tagmap)
   end
-
   # base case
   defp start_objects([], pids, tagmap) do
     {pids, tagmap}
@@ -181,7 +178,6 @@ defmodule APS do
       end
       update_tags(result, rest, item)
     end
-
   # base case
   defp update_tags(existing, [], _item) do
     existing

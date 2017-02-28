@@ -18,7 +18,7 @@ defmodule APSTest do
     {:ok, zone: zone}
   end
 
-  test "tag-finding", %{zone: zone} do
+  test "adding and tag-finding", %{zone: zone} do
     assert APS.show_tags(zone) == []
     APS.add_object(zone, [:foo, :bar], DummyObject, [5, 3])
     APS.add_object(zone, [:bar], DummyObject, [])
