@@ -8,14 +8,16 @@ defmodule APS do
   and any interactions between objects, cross-Zone or otherwise.
 
   Objects in a Zone are tagged with keyword lists,
-  to check the tags the rules (see below).
-  One required tag is :position, which the object itself should know
-  and which may change as the game progresses. The associated value
-  can be of any format but should be consistent within a specific
-  Zone type. It might be actual coordinates, or it might be something
-  more abstract such as an index (cards in a hand) or a keyword list
-  (for in-game states associated with e.g. rotation or reflection)
-  A Zone has a function to convert this internal representation
+  to check the tags against the rules (see below).
+
+
+  Objects will be able to return their position within a zone on request.
+  The associated value can be of any format but should be consistent
+  for all objects in a specific Zone type. It might be actual coordinates,
+  or it might be something more abstract such as an index
+  (cards in a hand) or a keyword list (for in-game states
+  associated with e.g. rotation or reflection).
+  A Zone must have a function to convert this internal representation
   into a transform (relative to that Zone's rectangle of screen)
   for rendering.
 
