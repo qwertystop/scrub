@@ -47,15 +47,29 @@ defmodule APS do
   defmacro __using__(opts) do
     quote do
       use GenServer
-      import APS
+      require APS
       # Public API of Zones
-      # This part is configured by argument to __using__
       @doc """
       Starts up the Zone with default arguments
       """
       def start_link do
         GenServer.start_link(__MODULE__, unquote(opts))
       end
+
+      # Delegates to APS for GenServer callbacks
+      def init(arg) do
+        APS.init(arg)
+      end
+
+      def handle_call(request, from, state) do
+        APS.handle_call(request, from, state)
+      end
+
+      def handle_cast(request, state) do
+        APS.handle_cast(request, state)
+      end
+
+      defoverridable [start_link: 0, handle_call: 3, handle_cast: 2]
     end
   end
 
@@ -103,15 +117,16 @@ defmodule APS do
 
   # Calls
 
-  def handle_call(:showtags, state) do
-    state.tags
+  def handle_call(:showtags, _from, %{:tags => tags}=state) do
+    {:reply, Map.keys(tags), state}
   end
 
-  def handle_call({:findtagged, tag}, state) do
-    case state.tags do
+  def handle_call({:findtagged, tag}, _from, %{:tags => tags}=state) do
+    reply = case tags do
       %{^tag => val} -> val
       _ -> []
     end
+    {:reply, reply, state}
   end
 
   # Casts
@@ -119,11 +134,12 @@ defmodule APS do
   @doc """
   Add an object to this.
   """
-  def handle_cast({:addobj, {_tags, _module, _args, _opts}=params}, state) do
-    {objlist, taglist} = add_obj(state.objects, state.tags, params)
+  def handle_cast({:addobj, {_tags, _module, _args, _opts}=params},
+      %{:objects => objects, :tags => tags}=state) do
+    {objlist, tagmap} = add_obj(objects, tags, params)
     {:noreply, %{state |
         :objects => objlist,
-        :tags => taglist}}
+        :tags => tagmap}}
   end
 
   ## Private functions
@@ -153,7 +169,7 @@ defmodule APS do
       # If first is there, prepend new item
       %{^tag => vals} -> %{existing | tag => [item | vals]}
         # else make a new list
-        _ -> %{existing | tag => [item]}
+        _ -> Map.put(existing, tag, [item])
       end
       update_tags(result, rest, item)
     end
