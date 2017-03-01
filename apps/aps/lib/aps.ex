@@ -31,7 +31,11 @@ defmodule APS do
   """
 
 # TODO: Done things are:
-# Initialization of objects, adding more objects.
+# Initialization of objects, adding objects, removing object, searching by keys.
+# TODO things are:
+# Having rules, checking rules, running rules, broadcasting casts to tags,
+# collecting calls from tags, position conversion stub (overridable),
+# having neighbors (labelled)
 
   @doc """
   A Zone is set up by `use APS, opts`,

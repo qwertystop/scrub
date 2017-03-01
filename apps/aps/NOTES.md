@@ -28,8 +28,9 @@ Necessary built-in functions:
 - Call function on object
 - Cast request to object
 - Check object list for rule applicability
-- Provide real position of object based on abstract position
+- Stub of position-converter to clarify interface
 
 Necessary usercode:
 - Rules (both conditions and functions)
 - Convert abstract to real position
+- Provide real position of object based on abstract position
