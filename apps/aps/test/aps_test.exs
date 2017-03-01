@@ -32,9 +32,9 @@ defmodule APSTest do
     #  and one of the bars is also the foo.
     #  and there are no other tags
     # Also: Using both the APS and aliased versions to confirm no difference.
-    foos = APS.find_tagged(zone, :foo)
-    bars = DummyZone.find_tagged(zone, :bar)
-    assert APS.find_tagged(zone, :other) == []
+    foos = APS.find_tagged(:foo, zone)
+    bars = DummyZone.find_tagged(:bar, zone)
+    assert APS.find_tagged(:other, zone) == []
     assert Enum.count(foos) == 1
     assert Enum.count(bars) == 2
     assert Enum.count(Enum.uniq(foos ++ bars)) == 2
@@ -48,12 +48,12 @@ defmodule APSTest do
     APS.add_object(zone, [:quux, :baz], DummyObject, ["alphabet"])
     APS.add_object(zone, [:baz, :leff], DummyObject, [134])
     assert APS.show_tags(zone) == [:baz, :leff, :quux]
-    assert Enum.count(APS.find_tagged(zone, :baz)) == 2
-    [alp | []] = APS.find_tagged(zone, :quux)
-    assert APS.pop_object(zone, DummyObject, alp) == "alphabet"
-    assert Enum.count(APS.find_tagged(zone, :baz)) == 1
-    assert Enum.count(APS.find_tagged(zone, :quux)) == 0
-    num = APS.find_tagged(zone, :baz) |> hd |> Agent.get(fn val -> val end)
+    assert :baz |> APS.find_tagged(zone) |> Enum.count == 2
+    [alp | []] = APS.find_tagged(:quux, zone)
+    assert APS.pop_object(alp, zone, DummyObject) == "alphabet"
+    assert :baz |> APS.find_tagged(zone) |> Enum.count == 1
+    assert :quux |> APS.find_tagged(zone) |> Enum.count == 0
+    num = :baz |> APS.find_tagged(zone) |> hd |> Agent.get(fn val -> val end)
     assert num == 134
   end
 end
