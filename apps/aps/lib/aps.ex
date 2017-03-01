@@ -59,6 +59,7 @@ defmodule APS do
       defdelegate add_object(zone, tags, module, args, options \\ []), to: APS
       defdelegate show_tags(zone), to: APS
       defdelegate find_tagged(zone, tag), to: APS
+      defdelegate pop_object(zone, module, pid), to: APS
 
       ## GenServer callbacks
       defdelegate init(args), to: APS
@@ -66,10 +67,12 @@ defmodule APS do
       # Specific-pattern heads don't work with defdelegate
       def handle_call(:showtags, from, state),
         do: APS.handle_call(:showtags, from, state)
-      def handle_call({:findtagged, tag}, from, state),
-        do: APS.handle_call({:findtagged, tag}, from, state)
-      def handle_cast({:addobj, params}, state),
-        do: APS.handle_cast({:addobj, params}, state)
+      def handle_call({:findtagged, tag}=req, from, state),
+        do: APS.handle_call(req, from, state)
+      def handle_call({:popobj, module, pid}=req, from, state),
+        do: APS.handle_call(req, from, state)
+      def handle_cast({:addobj, params}=req, state),
+        do: APS.handle_cast(req, state)
     end
   end
 
@@ -96,6 +99,16 @@ defmodule APS do
   """
   def find_tagged(zone, tag) do
     GenServer.call(zone, {:findtagged, tag})
+  end
+
+  @doc """
+  Returns the argument to pass to its module's init/1 to recreate the object.
+  Then, removes the specified object from the zone,
+  makes sure it's no longer listed for any tags,
+  and stops it.
+  """
+  def pop_object(zone, module, pid) do
+    GenServer.call(zone, {:popobj, module, pid})
   end
 
   ## GenServer callbacks
@@ -135,6 +148,22 @@ defmodule APS do
       _ -> []
     end
     {:reply, reply, state}
+  end
+
+  @doc """
+  Returns the argument to pass to its module's init/1 to recreate the object.
+  Then, removes the specified object from the zone,
+  makes sure it's no longer listed for any tags,
+  and stops it.
+  """
+  def handle_call({:popobj, module, pid}, from,
+      %{:objects => objects, :tags => tags}=state) do
+    reply = Agent.get(pid, module, :params, [])
+    GenServer.reply(from, reply)
+    Agent.stop(pid)
+    {:noreply, %{state |
+        :objects => List.delete(objects, pid),
+        :tags => excise(tags, pid, Map.keys(tags))}}
   end
 
   # Casts
@@ -181,5 +210,14 @@ defmodule APS do
   # base case
   defp update_tags(existing, [], _item) do
     existing
+  end
+
+  # Remove item from all lists in keys of map that contain it
+  defp excise(map, item, [key | rest]) do
+    excise(%{map | key => List.delete(map[key], item)}, item, rest)
+  end
+  # base case
+  defp excise(map, _item, []) do
+    map
   end
 end
