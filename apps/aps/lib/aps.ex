@@ -31,11 +31,11 @@ defmodule APS do
   """
 
 # TODO: Done things are:
-# Initialization of objects, adding objects, removing object, searching by keys.
+# Initialization of objects, adding objects, removing object, searching by keys,
+# adding neighbors, finding neighbors
 # TODO things are:
 # Having rules, checking rules, running rules, broadcasting casts to tags,
-# collecting calls from tags, position conversion stub (overridable),
-# having neighbors (labelled)
+# collecting calls from tags, position conversion stub (overridable)
 
   @doc """
   A Zone is set up by `use APS, opts`,
@@ -115,6 +115,39 @@ defmodule APS do
     GenServer.call(zone, {:popobj, module, pid})
   end
 
+  @doc """
+  Register `other` as a neighbor of `one` under a given name.
+  Names should be symbols that indicate the relationship
+  between the zones from the perspective of `one`, e.g. `:above`
+  meaning that `other` is above `one`.
+
+  Any given zone can only have one
+  neighbor under a given name,
+  but multiple zones may have neighbors
+  under the same name.
+  e.g. only one zone can be directly :above zone A,
+  but zone B can also have something :above it.
+
+  Returns :ok or {:error, :already_registered}
+  """
+  def add_neighbor(other, name, one)
+      when is_pid(other) and is_atom(name) and is_pid(one) do
+    GenServer.call(one, {:addneighbor, other, name})
+  end
+
+  @doc """
+  Returns the pid of the indicated neighbor of this process.
+  Returns {:error, :none} if there is no such neighbor.
+  """
+  def get_neighbor(zone, name) when is_pid(zone) and is_atom(name) do
+    case GenServer.call(zone, {:getneighbor, name}) do
+      pid when is_pid(pid) -> pid
+      [] -> {:error, :none}
+      # below should never come up
+      other -> {:error, {:unexpected, other}}
+    end
+  end
+
   ## GenServer callbacks
 
   @doc """
@@ -170,6 +203,31 @@ defmodule APS do
         :tags => excise(tags, pid, Map.keys(tags))}}
   end
 
+  @doc """
+  Registers a neighbor for this.
+  """
+  def handle_call({:addneighbor, other, name}, _from, _state) do
+    unless Registry.keys(:neighbor_registry, self())
+           |> Enum.member?(name) do
+      # Name not registered for this process
+      Registry.register(:neighbor_registry, name, other)
+      {:reply, :ok, _state}
+    else
+      {:reply, {:error, :already_registered}, :state}
+    end
+  end
+
+  @doc """
+  Finds indicated neighbor of this.
+  """
+  def handle_call({:getneighbor, name}, _from, _state) do
+    with zones = Registry.lookup(:neighbor_registry, name),
+      [head|tail] = zones,
+      [ngbr|[]] = Enum.filter_map(zones,
+                            fn {s, _} -> s === self() end,
+                            fn {_, p} -> p end),
+      do: ngbr
+  end
   # Casts
   @doc """
   Add an object to this.
