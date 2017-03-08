@@ -10,7 +10,6 @@ defmodule APS do
   Objects in a Zone are tagged with keyword lists,
   to check the tags against the rules (see below).
 
-
   Objects will be able to return their position within a zone on request.
   The associated value can be of any format but should be consistent
   for all objects in a specific Zone type. It might be actual coordinates,
@@ -64,6 +63,8 @@ defmodule APS do
       defdelegate show_tags(zone), to: APS
       defdelegate find_tagged(tag, zone), to: APS
       defdelegate pop_object(pid, zone, module), to: APS
+      defdelegate add_neighbor(other, name, one), to: APS
+      defdelegate get_neighbor(zone, name), to: APS
 
       ## GenServer callbacks
       defdelegate init(args), to: APS
@@ -74,6 +75,10 @@ defmodule APS do
       def handle_call({:findtagged, tag}=req, from, state),
         do: APS.handle_call(req, from, state)
       def handle_call({:popobj, module, pid}=req, from, state),
+        do: APS.handle_call(req, from, state)
+      def handle_call({:addneighbor, other, name}=req, from, state),
+        do: APS.handle_call(req, from, state)
+      def handle_call({:getneighbor, name}=req, from, state),
         do: APS.handle_call(req, from, state)
       def handle_cast({:addobj, params}=req, state),
         do: APS.handle_cast(req, state)
@@ -130,8 +135,7 @@ defmodule APS do
 
   Returns :ok or {:error, :already_registered}
   """
-  def add_neighbor(other, name, one)
-      when is_pid(other) and is_atom(name) and is_pid(one) do
+  def add_neighbor(other, name, one) do
     GenServer.call(one, {:addneighbor, other, name})
   end
 
@@ -139,7 +143,7 @@ defmodule APS do
   Returns the pid of the indicated neighbor of this process.
   Returns {:error, :none} if there is no such neighbor.
   """
-  def get_neighbor(zone, name) when is_pid(zone) and is_atom(name) do
+  def get_neighbor(zone, name) do
     case GenServer.call(zone, {:getneighbor, name}) do
       pid when is_pid(pid) -> pid
       [] -> {:error, :none}
