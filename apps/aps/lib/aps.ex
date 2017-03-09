@@ -29,12 +29,12 @@ defmodule APS do
   function.
   """
 
-# TODO: Done things are:
-# Initialization of objects, adding objects, removing object, searching by keys,
-# adding neighbors, finding neighbors
-# TODO things are:
-# Having rules, checking rules, running rules, broadcasting casts to tags,
-# collecting calls from tags, position conversion stub (overridable)
+  # TODO: Done things are:
+  # Initialization of objects, adding objects, removing object, searching by keys,
+  # adding neighbors, finding neighbors
+  # TODO things are:
+  # Having rules, checking rules, running rules, broadcasting casts to tags,
+  # collecting calls from tags, position conversion stub (overridable)
 
   @doc """
   A Zone is set up by `use APS, opts`,
@@ -217,7 +217,7 @@ defmodule APS do
       Registry.register(:neighbor_registry, name, other)
       {:reply, :ok, _state}
     else
-      {:reply, {:error, :already_registered}, :state}
+      {:reply, {:error, :already_registered}, _state}
     end
   end
 
@@ -225,12 +225,13 @@ defmodule APS do
   Finds indicated neighbor of this.
   """
   def handle_call({:getneighbor, name}, _from, _state) do
-    with zones = Registry.lookup(:neighbor_registry, name),
+    result = with zones = Registry.lookup(:neighbor_registry, name),
       [head|tail] = zones,
       [ngbr|[]] = Enum.filter_map(zones,
                             fn {s, _} -> s === self() end,
                             fn {_, p} -> p end),
       do: ngbr
+      {:reply, result, _state}
   end
   # Casts
   @doc """
