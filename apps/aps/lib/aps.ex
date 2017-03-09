@@ -31,9 +31,9 @@ defmodule APS do
 
   # TODO: Done things are:
   # Initialization of objects, adding objects, removing object, searching by keys,
-  # adding neighbors, finding neighbors
+  # adding neighbors, finding neighbors, having rules
   # TODO things are:
-  # Having rules, checking rules, running rules, broadcasting casts to tags,
+  # checking rules, running rules, broadcasting casts to tags,
   # collecting calls from tags, position conversion stub (overridable)
 
   @doc """
@@ -65,6 +65,7 @@ defmodule APS do
       defdelegate pop_object(pid, zone, module), to: APS
       defdelegate add_neighbor(other, name, one), to: APS
       defdelegate get_neighbor(zone, name), to: APS
+      defdelegate check_rules(zone), to: APS
 
       ## GenServer callbacks
       defdelegate init(args), to: APS
@@ -81,6 +82,8 @@ defmodule APS do
       def handle_call({:getneighbor, name}=req, from, state),
         do: APS.handle_call(req, from, state)
       def handle_cast({:addobj, params}=req, state),
+        do: APS.handle_cast(req, state)
+      def handle_cast(:checkrules, state),
         do: APS.handle_cast(req, state)
     end
   end
@@ -152,22 +155,37 @@ defmodule APS do
     end
   end
 
+  @doc """
+  Checks for applicable rules in a zone, runs them.
+  """
+  def check_rules(zone) do
+    GenServer.cast(zone, :checkrules)
+  end
+
   ## GenServer callbacks
 
   @doc """
   Initialize the Zone.
   Argument must be a tuple containing:
   - object_setup
+  - rule_setup
 
   object_setup is a list of object parameter tuples.
   An object parameter tuple is {tag_list, module, args, opts}
   tag_list is a list of symbols used to tag the specific object.
   The others are the arguments to Agent.start_link/4 to create the object,
   where the function called is :init
+
+  rule_list is a list of Rules.
+  A Rule is a tuple {atom, (zone, object -> :ok)}
+  The atom is a tag to find objects on in a zone, each frame.
+  The function is then called, with the zone and each found object in turn.
+  Typically it will use the zone's public API to modify the zone and/or
+  run Agent functions on the object.
   """
-  def init({object_setup}) do
+  def init({object_setup, rule_list}) do
     {objects, tagmap} = start_objects(object_setup)
-    {:ok, %{objects: objects, tags: tagmap}, :hibernate}
+    {:ok, %{objects: objects, tags: tagmap, rules: rule_list}, :hibernate}
   end
 
   # Calls
@@ -243,6 +261,14 @@ defmodule APS do
     {:noreply, %{state |
         :objects => objlist,
         :tags => tagmap}}
+  end
+
+  @doc """
+  Runs all rules.
+  """
+  def handle_cast(:checkrules, %{:rules => rules}=state) do
+    # TODO stub, can't think right now.
+    {:noreply, state}
   end
 
   ## Private
