@@ -32,9 +32,11 @@ defmodule APS do
   # TODO: Done things are:
   # Initialization of objects, adding objects, removing object, searching by keys,
   # adding neighbors, finding neighbors, having rules
+  # checking rules, running rules
   # TODO things are:
-  # checking rules, running rules, broadcasting casts to tags,
-  # collecting calls from tags, position conversion stub (overridable)
+  # broadcasting casts to tags,
+  # collecting calls from tags,
+  # position conversion stub (overridable)
 
   @doc """
   A Zone is set up by `use APS, opts`,
@@ -267,7 +269,16 @@ defmodule APS do
   Runs all rules.
   """
   def handle_cast(:checkrules, %{:rules => rules}=state) do
-    # TODO stub, can't think right now.
+    zone = self()
+    # For each rule
+    Task.async_stream(rules, fn {tag, cbak} ->
+      # Find all the objects with the appropriate tag
+      GenServer.call(zone, {:findtagged, tag})
+      # Call the rule's callback function on each one
+      |> Task.async_stream &cbak.(zone, &1)
+      # Push it all through the pipe
+      |> Enum.to_list
+    end)
     {:noreply, state}
   end
 
