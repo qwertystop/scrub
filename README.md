@@ -2,6 +2,6 @@
 ## A rules-based game engine in pure Elixir
 
 **Anywhere in existing code containing the string "USERCODE" as a comment
-indicates that code specific to the game engine should be put there.**
+refers to code written for a specific game by the developer.**
 
 **TODO: Add description**
