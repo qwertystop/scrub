@@ -32,9 +32,9 @@ defmodule APSTest do
     #  and one of the bars is also the foo.
     #  and there are no other tags
     # Also: Using both the APS and aliased versions to confirm no difference.
-    foos = APS.find_tagged(:foo, zone)
-    bars = DummyZone.find_tagged(:bar, zone)
-    assert APS.find_tagged(:other, zone) == []
+    foos = APS.find_tagged(zone, :foo)
+    bars = DummyZone.find_tagged(zone, :bar)
+    assert APS.find_tagged(zone, :other) == []
     assert Enum.count(foos) == 1
     assert Enum.count(bars) == 2
     assert Enum.count(Enum.uniq(foos ++ bars)) == 2

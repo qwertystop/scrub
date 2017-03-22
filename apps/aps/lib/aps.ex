@@ -63,7 +63,7 @@ defmodule APS do
       # This part of the public API is the same regardless of configuration
       defdelegate add_object(zone, tags, module, args, options \\ []), to: APS
       defdelegate show_tags(zone), to: APS
-      defdelegate find_tagged(tag, zone), to: APS
+      defdelegate find_tagged(zone, tag), to: APS
       defdelegate pop_object(pid, zone, module), to: APS
       defdelegate add_neighbor(other, name, one), to: APS
       defdelegate get_neighbor(zone, name), to: APS
@@ -111,7 +111,7 @@ defmodule APS do
   Returns the  list of objects with the given tag in the zone.
   Returns an empty list if there are no such objects.
   """
-  def find_tagged(tag, zone) do
+  def find_tagged(zone, tag) do
     GenServer.call(zone, {:findtagged, tag})
   end
 
