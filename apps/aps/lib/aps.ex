@@ -32,10 +32,8 @@ defmodule APS do
   # TODO: Done things are:
   # Initialization of objects, adding objects, removing object, searching by keys,
   # adding neighbors, finding neighbors, having rules
-  # checking rules, running rules
+  # checking rules, running rules, casts and calls on tags
   # TODO things are:
-  # broadcasting casts to tags,
-  # collecting calls from tags,
   # position conversion stub (overridable)
 
   @doc """
@@ -64,6 +62,10 @@ defmodule APS do
       defdelegate add_object(zone, tags, module, args, options \\ []), to: APS
       defdelegate show_tags(zone), to: APS
       defdelegate find_tagged(zone, tag), to: APS
+      defdelegate cast_tagged(zone, tag, fun), to: APS
+      defdelegate cast_tagged(zone, tag, mod, fun, args), to: APS
+      defdelegate call_tagged(zone, tag, fun), to: APS
+      defdelegate call_tagged(zone, tag, mod, fun, args), to: APS
       defdelegate pop_object(pid, zone, module), to: APS
       defdelegate add_neighbor(other, name, one), to: APS
       defdelegate get_neighbor(zone, name), to: APS
@@ -113,6 +115,45 @@ defmodule APS do
   """
   def find_tagged(zone, tag) do
     GenServer.call(zone, {:findtagged, tag})
+  end
+  
+  @doc """
+  Casts the given (state -> new_state) to all objects with specified tag.
+  """
+  def cast_tagged(zone, tag, fun) do
+    find_tagged(zone, tag)
+    |> Enum.map &(Agent.cast(&1, fun))
+    :ok
+  end
+
+  @doc """
+  Casts Module.function to all objects with specified tag,
+  prepending an object's state to args.
+  """
+  def cast_tagged(zone, tag, mod, fun, args) do
+    find_tagged(zone, tag)
+    |> Enum.map &(Agent.cast(&1, mod, fun, args))
+    :ok
+  end
+
+  @doc """
+  Calls the given (state -> {result, new_state}) on all object with specified tag;
+  returns list of {pid, result}.
+  """
+  def call_tagged(zone, tag, fun) do
+    find_tagged(zone, tag)
+    |> Task.async_stream &({&1, Agent.get_and_update(&1, fun)})
+    |> Enum.to_list
+  end
+
+  @doc """
+  Calls the given (state -> {result, new_state}) on all object with specified tag;
+  returns list of {pid, result}.
+  """
+  def call_tagged(zone, tag, mod, fun, args) do
+    find_tagged(zone, tag)
+    |> Task.async_stream &({&1, Agent.get_and_update(&1, mod, fun, args)})
+    |> Enum.to_list
   end
 
   @doc """
