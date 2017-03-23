@@ -70,6 +70,7 @@ defmodule APS do
       defdelegate add_neighbor(other, name, one), to: APS
       defdelegate get_neighbor(zone, name), to: APS
       defdelegate check_rules(zone), to: APS
+      defdelegate get_graphic(zone), to: APS
 
       ## GenServer callbacks
       defdelegate init(args), to: APS
@@ -79,6 +80,8 @@ defmodule APS do
         do: APS.handle_call(:showtags, from, state)
       def handle_call({:findtagged, tag}=req, from, state),
         do: APS.handle_call(req, from, state)
+      def handle_call(:allobj, from, state),
+        do: APS.handle_call(:allobj, from, state)
       def handle_call({:popobj, module, pid}=req, from, state),
         do: APS.handle_call(req, from, state)
       def handle_call({:addneighbor, other, name}=req, from, state),
@@ -116,13 +119,17 @@ defmodule APS do
   def find_tagged(zone, tag) do
     GenServer.call(zone, {:findtagged, tag})
   end
-  
+ 
+  def all_objects(zone) do
+    GenServer.call(zone, :allobj)
+  end
+
   @doc """
   Casts the given (state -> new_state) to all objects with specified tag.
   """
   def cast_tagged(zone, tag, fun) do
     find_tagged(zone, tag)
-    |> Enum.map &(Agent.cast(&1, fun))
+    |> cast_list fun
     :ok
   end
 
@@ -132,7 +139,24 @@ defmodule APS do
   """
   def cast_tagged(zone, tag, mod, fun, args) do
     find_tagged(zone, tag)
-    |> Enum.map &(Agent.cast(&1, mod, fun, args))
+    |> cast_list(mod, fun, args)
+    :ok
+  end
+
+  @doc """
+  Casts the given (state -> new_state) to all objects in the list.
+  """
+  def cast_list(list, fun) do
+    Enum.map(list, &(Agent.cast(&1, fun)))
+    :ok
+  end
+
+  @doc """
+  Casts Module.function to all objects in the list,
+  prepending an object's state to args.
+  """
+  def cast_list(list, mod, fun, args) do
+    Enum.map(list, &(Agent.cast(&1, mod, fun, args)))
     :ok
   end
 
@@ -142,8 +166,7 @@ defmodule APS do
   """
   def call_tagged(zone, tag, fun) do
     find_tagged(zone, tag)
-    |> Task.async_stream &({&1, Agent.get_and_update(&1, fun)})
-    |> Enum.to_list
+    |> call_list(fun)
   end
 
   @doc """
@@ -152,6 +175,25 @@ defmodule APS do
   """
   def call_tagged(zone, tag, mod, fun, args) do
     find_tagged(zone, tag)
+    |> call_list(mod, fun, args)
+  end
+
+  @doc """
+  Calls the given (state -> {result, new_state}) on all objects in the list,
+  returns list of {pid, result}.
+  """
+  def call_list(list, fun) do
+    list
+    |> Task.async_stream &({&1, Agent.get_and_update(&1, fun)})
+    |> Enum.to_list
+  end
+
+  @doc """
+  Calls the given (state -> {result, new_state}) on all objects in the list,
+  returns list of {pid, result}.
+  """
+  def call_list(list, mod, fun, args) do
+    list
     |> Task.async_stream &({&1, Agent.get_and_update(&1, mod, fun, args)})
     |> Enum.to_list
   end
@@ -205,6 +247,23 @@ defmodule APS do
     GenServer.cast(zone, :checkrules)
   end
 
+  @doc """
+  Returns the graphic to draw for this zone.
+  In default implementation, assumes
+  each object returns {int, int, int},
+  interprets that as an RGB color,
+  averages the colors, and returns the result.
+  Is overridable. I know it's simplistic,
+  but I'm pressed for time and this will do as proof-of-concept.
+  """
+  def get_graphic(zone) do
+    with objs <- all_objects(zone),
+      colors <- call_list(zone, APS.Object, :color, []) |> Enum.map(fn {pid, val} -> val end),
+        num <- List.length(colors),
+        {rt, gt, bt} <- Enum.map_reduce(colors, {0, 0, 0}, fn {r, g, b}, {rt, gt, bt} -> {r+rt, g+gt, b+bt} end),
+        do: {rt / num, gt / num, bt / num}
+  end
+
   ## GenServer callbacks
 
   @doc """
@@ -250,6 +309,13 @@ defmodule APS do
       _ -> []
     end
     {:reply, reply, state}
+  end
+
+  @doc """
+  Get all the objects in the zone.
+  """
+  def handle_call(:allobj, _from, %{:objects => objects}) do
+    objects
   end
 
   @doc """
