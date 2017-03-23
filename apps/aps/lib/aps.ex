@@ -63,9 +63,9 @@ defmodule APS do
       defdelegate show_tags(zone), to: APS
       defdelegate find_tagged(zone, tag), to: APS
       defdelegate cast_tagged(zone, tag, fun), to: APS
-      defdelegate cast_tagged(zone, tag, mod, fun, args), to: APS
+      defdelegate cast_tagged(zone, tag, mod, fun, args \\ []), to: APS
       defdelegate call_tagged(zone, tag, fun), to: APS
-      defdelegate call_tagged(zone, tag, mod, fun, args), to: APS
+      defdelegate call_tagged(zone, tag, mod, fun, args \\ []), to: APS
       defdelegate pop_object(pid, zone, module), to: APS
       defdelegate add_neighbor(other, name, one), to: APS
       defdelegate get_neighbor(zone, name), to: APS
@@ -137,7 +137,7 @@ defmodule APS do
   Casts Module.function to all objects with specified tag,
   prepending an object's state to args.
   """
-  def cast_tagged(zone, tag, mod, fun, args) do
+  def cast_tagged(zone, tag, mod, fun, args \\ []) do
     find_tagged(zone, tag)
     |> cast_list(mod, fun, args)
     :ok
@@ -155,7 +155,7 @@ defmodule APS do
   Casts Module.function to all objects in the list,
   prepending an object's state to args.
   """
-  def cast_list(list, mod, fun, args) do
+  def cast_list(list, mod, fun, args \\ []) do
     Enum.map(list, &(Agent.cast(&1, mod, fun, args)))
     :ok
   end
@@ -173,7 +173,7 @@ defmodule APS do
   Calls the given (state -> {result, new_state}) on all object with specified tag;
   returns list of {pid, result}.
   """
-  def call_tagged(zone, tag, mod, fun, args) do
+  def call_tagged(zone, tag, mod, fun, args \\ []) do
     find_tagged(zone, tag)
     |> call_list(mod, fun, args)
   end
@@ -192,7 +192,7 @@ defmodule APS do
   Calls the given (state -> {result, new_state}) on all objects in the list,
   returns list of {pid, result}.
   """
-  def call_list(list, mod, fun, args) do
+  def call_list(list, mod, fun, args \\ []) do
     list
     |> Task.async_stream &({&1, Agent.get_and_update(&1, mod, fun, args)})
     |> Enum.to_list
@@ -258,9 +258,11 @@ defmodule APS do
   """
   def get_graphic(zone) do
     with objs <- all_objects(zone),
-      colors <- call_list(zone, APS.Object, :color, []) |> Enum.map(fn {pid, val} -> val end),
+      colors <- call_list(zone, APS.Object, :color) |> Enum.map(fn {pid, val} -> val end),
         num <- List.length(colors),
-        {rt, gt, bt} <- Enum.map_reduce(colors, {0, 0, 0}, fn {r, g, b}, {rt, gt, bt} -> {r+rt, g+gt, b+bt} end),
+        {rt, gt, bt} <- Enum.map_reduce(colors, {0, 0, 0},
+                                        fn {r, g, b}, {rt, gt, bt} ->
+                                          {r+rt, g+gt, b+bt} end),
         do: {rt / num, gt / num, bt / num}
   end
 
