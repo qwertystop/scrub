@@ -1,48 +1,34 @@
 # Architecture:
 ## Sub-applications:
 - Renderer
- - Stores non-changing information (like sprites) for each object
- - Gets changing information (any transforms) each frame
- - Each Zone has a place on-screen to be rendered in, and a background to put there
- - Zone areas cannot overlap
-  - Removes some graphical options, but graphics are not the point of this project
+ - Starting simple: Each Zone gets a static rectangle,
+ and can change its color.
+ - Later versions with less time restriction should allow:
+  - Overlapping Zones
+  - Actual sprites other than single rectangles
 - Zones
- - ZoneRegistry
-  - use GenServer
-  - Can map from any Zone to all connected Zones
-   - Connection sets are tagged, allowing e.g. directions to matter
-  - Zones arranged in arbitrary graph
- - Zone
-  - macro-module
-  - use Agent
-  - Knows what Objects are in it
-   - (pid and tags)
-  - call it for contained Objects (of specific kind)
-  - Has a list of atoms as tags
-  - Has a function: Given an Object's in-zone position, produce a transform for the renderer
-   - Literal position isn't as much of a thing
+ - macro-module
+ - use GenServer
+ - Knows what Objects are in it
+  - (pid and tags)
+ - call it for contained Objects (of specific kind)
+ - Has a list of atoms as tags
+ - Has a function: Based on contained objects, produce a color
+  - TODO for later version: Add graphics other than single colors.
 - Objects
- - ObjectRegistry
-  - use GenServer
- - Object
-  - macro-module
-  - use Agent
-  - Created in/by a Zone, store pid of that Zone
-  - State is a map, which can include tags (atom mapping to true)
-  - Has a list of functions following Rule API
-  - Has an automatic update function
-  - Responds to messages passed from UI forwarder
-  - Has a location, but relative to the Zone
+ - Anything implementing the necessary protocol,
+ wrapped in an Agent.
+ - Protocol has default implementation written up for Maps.
 - Rule system
  - Rule API
-  - foo({:tag, pid}, {:tag, pid}, :samezone) # (or :connzone)
-  - Given two objects with specific tags, send messages to those objects
-  - Objects should handle those messages appropriately
-  - Each update, all Zones try to call rules for all object pairs
-  - Game should have a single Rules module to leverage pattern-matching
+  - Rule has a tag. Zone has a rule.
+  - Each update, call the Rule's function for each object with the tag,
+  and also pass the Zone.
 - UI Forwarder
- - Send messages to object manager containing keyboard input
-  - Not bothering with other input devices for the first version
+ - Objects can be tagged as getting keyboard and/or mouse events
+ - When keyboard input happens, send it to all zones,
+ which then send it to all objects with the tag.
+ - Mouse input goes only to the zone(s) the mouse is touching.
 
 # Basic game loop:
 1. Concurrently:
