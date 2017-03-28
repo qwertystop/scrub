@@ -29,13 +29,6 @@ defmodule APS do
   function.
   """
 
-  # TODO: Done things are:
-  # Initialization of objects, adding objects, removing object, searching by keys,
-  # adding neighbors, finding neighbors, having rules
-  # checking rules, running rules, casts and calls on tags
-  # TODO things are:
-  # position conversion stub (overridable)
-
   @doc """
   A Zone is set up by `use APS, opts`,
   where `opts` is the tuple used by default for initialization
@@ -59,14 +52,14 @@ defmodule APS do
       end
 
       # This part of the public API is the same regardless of configuration
-      defdelegate add_object(zone, tags, module, args, options \\ []), to: APS
+      defdelegate add_object(zone, tags, args, options \\ []), to: APS
       defdelegate show_tags(zone), to: APS
       defdelegate find_tagged(zone, tag), to: APS
       defdelegate cast_tagged(zone, tag, fun), to: APS
       defdelegate cast_tagged(zone, tag, mod, fun, args \\ []), to: APS
       defdelegate call_tagged(zone, tag, fun), to: APS
       defdelegate call_tagged(zone, tag, mod, fun, args \\ []), to: APS
-      defdelegate pop_object(pid, zone, module), to: APS
+      defdelegate pop_object(pid, zone), to: APS
       defdelegate add_neighbor(other, name, one), to: APS
       defdelegate get_neighbor(zone, name), to: APS
       defdelegate check_rules(zone), to: APS
@@ -82,7 +75,7 @@ defmodule APS do
         do: APS.handle_call(req, from, state)
       def handle_call(:allobj, from, state),
         do: APS.handle_call(:allobj, from, state)
-      def handle_call({:popobj, module, pid}=req, from, state),
+      def handle_call({:popobj, pid}=req, from, state),
         do: APS.handle_call(req, from, state)
       def handle_call({:addneighbor, other, name}=req, from, state),
         do: APS.handle_call(req, from, state)
@@ -101,8 +94,8 @@ defmodule APS do
   Add a new object to the specified Zone.
   (specify a Zone by pid or by name)
   """
-  def add_object(zone, tags, module, args, options \\ []) do
-    GenServer.cast(zone, {:addobj, {tags, module, args, options}})
+  def add_object(zone, tags, args, options \\ []) do
+    GenServer.cast(zone, {:addobj, {tags, args, options}})
   end
 
   @doc """
@@ -204,8 +197,8 @@ defmodule APS do
   makes sure it's no longer listed for any tags,
   and stops it.
   """
-  def pop_object(pid, zone, module) do
-    GenServer.call(zone, {:popobj, module, pid})
+  def pop_object(pid, zone) do
+    GenServer.call(zone, {:popobj, pid})
   end
 
   @doc """
@@ -326,9 +319,9 @@ defmodule APS do
   makes sure it's no longer listed for any tags,
   and stops it.
   """
-  def handle_call({:popobj, module, pid}, from,
+  def handle_call({:popobj, pid}, from,
       %{:objects => objects, :tags => tags}=state) do
-    reply = Agent.get(pid, module, :params, [])
+    reply = Agent.get(pid, &(&1), []) |> APS.Object.deconstruct
     GenServer.reply(from, reply)
     Agent.stop(pid)
     {:noreply, %{state |
@@ -366,7 +359,7 @@ defmodule APS do
   @doc """
   Add an object to this.
   """
-  def handle_cast({:addobj, {_tags, _module, _args, _opts}=params},
+  def handle_cast({:addobj, {_tags, _args, _opts}=params},
       %{:objects => objects, :tags => tags}=state) do
     {objlist, tagmap} = add_obj(objects, tags, params)
     {:noreply, %{state |
@@ -394,8 +387,8 @@ defmodule APS do
   ## Private
   # Starts a new object,
   # returns updated taglist and objlist
-  defp add_obj(objlist, tagmap, {tags, module, args, opts}) do
-    {:ok, pid} = Agent.start_link(module, :init, args, opts)
+  defp add_obj(objlist, tagmap, {tags, args, opts}) do
+    {:ok, pid} = Agent.start_link(APS.Object, :reconstruct, args, opts)
     {[pid | objlist], update_tags(tagmap, tags, pid)}
   end
 
