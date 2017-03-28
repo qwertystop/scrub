@@ -31,6 +31,11 @@ defprotocol APS.Object do
   such as age counters or cached calculations.
   """
   def reconstruct(obj)
+
+  @doc """
+  Object recieves keypress code, returns its new state.
+  """
+  def handle_key(obj, key_code)
 end
 
 defimpl Object, for: Map do
@@ -44,6 +49,11 @@ defimpl Object, for: Map do
   end
 
   def reconstruct(map) do
+    map
+  end
+
+  # maps do not respond to key input
+  def handle_key(map, key_code) do
     map
   end
 end
