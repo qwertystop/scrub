@@ -314,7 +314,7 @@ defmodule APS do
   end
 
   @doc """
-  Returns the argument to pass to its module's init/1 to recreate the object.
+  Returns the argument to pass to APS.Object.reconstruct to recreate the object.
   Then, removes the specified object from the zone,
   makes sure it's no longer listed for any tags,
   and stops it.
