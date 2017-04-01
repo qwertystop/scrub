@@ -7,30 +7,18 @@ defprotocol APS.Object do
   def color(obj)
 
   @doc """
-  The inverse of APS.Object.reconstruct/1.
-  Deconstructing, message-passing, and reconstructing
-  is the intended means of copying or moving objects between zones.
+  Returns a clone of the object. Not guaranteed to be identical to that object;
+  if you want something identical use Agent.get/3 with the identity function.
+  The intended means of moving objects between zones.
   
-  The simplest implementation is to simply have
-  both functions return their argument.
+  The simplest implementation is to simply return the argument.
   However, some games may have object state which should
-  not be maintained on copy for reasons of gameplay or message-bloating,
-  such as age counters or cached calculations.
-  """
-  def deconstruct(obj)
+  not be maintained on clone for reasons of gameplay or message-bloating,
+  such as age counters or caches.
 
-  @doc """
-  The inverse of APS.Object.deconstruct/1.
-  Deconstructing, message-passing, and reconstructing
-  is the intended means of copying or moving objects between zones.
-  
-  The simplest implementation is to simply have
-  both functions return their argument.
-  However, some games may have object state which should
-  not be maintained on copy for reasons of gameplay or message-bloating,
-  such as age counters or cached calculations.
+  The options are for distinguishing between multiple such cases.
   """
-  def reconstruct(obj)
+  def clone(obj, opts \\ [])
 
   @doc """
   Object recieves keypress code, returns its new state.
@@ -44,11 +32,7 @@ defimpl Object, for: Map do
     do: {{r, g, b}, map}
   end
 
-  def deconstruct(map) do
-    map
-  end
-
-  def reconstruct(map) do
+  def clone(map, _opts \\ []) do
     map
   end
 

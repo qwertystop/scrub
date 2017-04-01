@@ -59,7 +59,7 @@ defmodule APS do
       defdelegate cast_tagged(zone, tag, mod, fun, args \\ []), to: APS
       defdelegate call_tagged(zone, tag, fun), to: APS
       defdelegate call_tagged(zone, tag, mod, fun, args \\ []), to: APS
-      defdelegate pop_object(pid, zone), to: APS
+      defdelegate pop_object(pid, zone, opts \\ []), to: APS
       defdelegate add_neighbor(other, name, one), to: APS
       defdelegate get_neighbor(zone, name), to: APS
       defdelegate check_rules(zone), to: APS
@@ -75,7 +75,7 @@ defmodule APS do
         do: APS.handle_call(req, from, state)
       def handle_call(:allobj, from, state),
         do: APS.handle_call(:allobj, from, state)
-      def handle_call({:popobj, pid}=req, from, state),
+      def handle_call({:popobj, pid, opts}=req, from, state),
         do: APS.handle_call(req, from, state)
       def handle_call({:addneighbor, other, name}=req, from, state),
         do: APS.handle_call(req, from, state)
@@ -192,13 +192,13 @@ defmodule APS do
   end
 
   @doc """
-  Returns the argument to pass to its module's init/1 to recreate the object.
+  Returns APS.Object.clone/2 for the object and the given options.
   Then, removes the specified object from the zone,
   makes sure it's no longer listed for any tags,
   and stops it.
   """
-  def pop_object(pid, zone) do
-    GenServer.call(zone, {:popobj, pid})
+  def pop_object(pid, zone, opts \\ []) do
+    GenServer.call(zone, {:popobj, pid, opts})
   end
 
   @doc """
@@ -268,10 +268,10 @@ defmodule APS do
   - rule_setup
 
   object_setup is a list of object parameter tuples.
-  An object parameter tuple is {tag_list, module, args, opts}
+  An object parameter tuple is {tag_list, new_obj_state, opts}
   tag_list is a list of symbols used to tag the specific object.
-  The others are the arguments to Agent.start_link/4 to create the object,
-  where the function called is :init
+  new_obj_state is the initial state of the new object.
+  opts is for Agent.start_link/2
 
   rule_list is a list of Rules.
   A Rule is a tuple {atom, (zone, object -> :ok)}
@@ -314,14 +314,14 @@ defmodule APS do
   end
 
   @doc """
-  Returns the argument to pass to APS.Object.reconstruct to recreate the object.
-  Then, removes the specified object from the zone,
+  Returns the clone of the object.
+  Then, removes the original from the zone,
   makes sure it's no longer listed for any tags,
   and stops it.
   """
-  def handle_call({:popobj, pid}, from,
+  def handle_call({:popobj, pid, opts}, from,
       %{:objects => objects, :tags => tags}=state) do
-    reply = Agent.get(pid, &(&1), []) |> APS.Object.deconstruct
+    reply = Agent.get(pid, APS.Object, :clone, [opts])
     GenServer.reply(from, reply)
     Agent.stop(pid)
     {:noreply, %{state |
@@ -359,7 +359,7 @@ defmodule APS do
   @doc """
   Add an object to this.
   """
-  def handle_cast({:addobj, {_tags, _args, _opts}=params},
+  def handle_cast({:addobj, {_tags, _newobj, _opts}=params},
       %{:objects => objects, :tags => tags}=state) do
     {objlist, tagmap} = add_obj(objects, tags, params)
     {:noreply, %{state |
@@ -384,11 +384,13 @@ defmodule APS do
     {:noreply, state}
   end
 
+  # TODO handle_info for keyboard input
+
   ## Private
   # Starts a new object,
   # returns updated taglist and objlist
-  defp add_obj(objlist, tagmap, {tags, args, opts}) do
-    {:ok, pid} = Agent.start_link(APS.Object, :reconstruct, args, opts)
+  defp add_obj(objlist, tagmap, {tags, newobj, opts}) do
+    {:ok, pid} = Agent.start_link(fn -> newobj end, opts)
     {[pid | objlist], update_tags(tagmap, tags, pid)}
   end
 
