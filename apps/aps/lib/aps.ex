@@ -67,6 +67,7 @@ defmodule APS do
 
       ## GenServer callbacks
       defdelegate init(args), to: APS
+      # def default? What was it? Need to check this.
 
       # Specific-pattern heads don't work with defdelegate
       def handle_call(:showtags, from, state),
@@ -371,8 +372,9 @@ defmodule APS do
   Runs all rules.
   """
   def handle_cast(:checkrules, %{:rules => rules}=state) do
-    zone = self()
+    zone = self
     # For each rule
+    # TODO am I handling async streams properly or do I need to strip anything?
     Task.async_stream(rules, fn {tag, cbak} ->
       # Find all the objects with the appropriate tag
       GenServer.call(zone, {:findtagged, tag})
@@ -384,7 +386,20 @@ defmodule APS do
     {:noreply, state}
   end
 
-  # TODO handle_info for keyboard input
+  @doc """
+  Keyboard input sent to a zone is broadcast to all objects in that zone.
+  This can be overridden in USERCODE to modify the zone state in other ways.
+  """
+  def handle_info({:key_code, code}, %{:objects => objects}=state) do
+    Task.async_stream(objects, &(Agent.cast(APS.Object, :handle_key, &1, code)))
+    |> Stream.run
+    {:noreply, state}
+  end
+
+  # Ignore other messages
+  def handle_info(_msg, state) do
+    {:noreply, state}
+  end
 
   ## Private
   # Starts a new object,
